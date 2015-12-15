@@ -22,7 +22,7 @@
 	"scripts": {
 		"vscode:prepublish": "node ./node_modules/vscode/bin/compile",
 		"compile": "node ./node_modules/vscode/bin/compile -watch -p ./",
-		"start": "node ./node_modules/vscode/bin/compile; VSCODE_CWD=\"$PWD\" open -n -b \"com.microsoft.VSCode\" --args --extensionDevelopmentPath=.; node ./node_modules/vscode/bin/compile -watch -p ./"
+		"start": "node ./node_modules/vscode/bin/compile; VSCODE_CWD=\"$PWD\" open -n -b \"com.microsoft.VSCode\" --args --extensionDevelopmentPath=. .; node ./node_modules/vscode/bin/compile -watch -p ./"
 	},
 	"extensionDependencies": [
 		"vscode.lldb"
