@@ -7,7 +7,7 @@
 import { DebugSession, InitializedEvent, TerminatedEvent, StoppedEvent, OutputEvent, Thread, StackFrame, Scope, Source } from "./common/debugSession";
 import { spawn, ChildProcess } from "child_process";
 import { readFileSync, existsSync, lstatSync } from 'fs';
-import { getToolPath } from './toolpath';
+import { getToolPath } from './utils';
 
 require("console-stamp")(console);
 
@@ -32,16 +32,19 @@ interface DebugBreakpoint {
 class LLDBDebugger {
 	debugger: Promise<ChildProcess>;
 	lldb: ChildProcess;
+	session: SwiftDebugSession;
 	
 	onstdout: (str: string) => void;
 	onstderr: (str: string) => void;
 	
-	public constructor() {
+	public constructor(session: SwiftDebugSession) {
 		this.debugger = null;
+		this.session = session;
 	}
 	
-	public connect(program: string) {
+	public connect(program: string): Promise<ChildProcess> {
 		console.log("LLDBDebugger: connect");
+		let self = this;
 		this.debugger = new Promise((resolve, reject) => {
 			let toolpath = getToolPath("lldb")
 			if (toolpath == null) {
@@ -53,11 +56,11 @@ class LLDBDebugger {
 
 			lldb.stdout.on("data", (str: string) => {
 				console.log("stdout: " + str);
-				//this.sendEvent(new OutputEvent(str, 'stdout'));
+				self.session.sendEvent(new OutputEvent(str + "", 'stdout'));
 			});
 			lldb.stderr.on("data", (str: string) => {
 				console.error("stderr: " + str);
-				//this.sendEvent(new OutputEvent(str, 'stdout'));
+				self.session.sendEvent(new OutputEvent(str + "", 'stdout'));
 			});
 			lldb.on("close", (code: number) => {
 				console.error("Process exiting with code: " + code);
@@ -65,6 +68,7 @@ class LLDBDebugger {
 			});
 			lldb.on("error", (err) => {
 				console.error("error: " + err);
+				self.session.sendEvent(new OutputEvent(err + "", 'stdout'));
 				reject(err);
 			});
 			
@@ -72,26 +76,47 @@ class LLDBDebugger {
 			this.lldb = lldb;
 			resolve(lldb);
 		});
+		
+		return this.debugger;
 	}
 	
 	public setBreakpoint(filename: string, linenumber: number): Promise<boolean> {
 		console.log("LLDBDebugger: setBreakpoint");
 		return new Promise((resolve, reject) => {
-			
+			resolve(true);
 		});
 	}
+	
+	public setBreakpoints(filename: string, linenumbers: number[]): Promise<boolean> {
+		console.log("LLDBDebugger: setBreakpoint");
+		return new Promise((resolve, reject) => {
+			for (var idx in linenumbers) {
+				this.lldb.stdin.write(`breakpoint set -f ${filename} -l ${linenumbers[idx]}\n`);
+			}
+			this.lldb.stdin.write("r\n");
+			resolve(true);
+		});
+	}
+
 
 	public removeBreakpoint(id: number): Promise<boolean> {
 		console.log("LLDBDebugger: removeBreakpoint");
 		return new Promise((resolve, reject) => {
-			
+			resolve(false);
 		});
 	}
 	
 	public removeAllBreakpoints(): Promise<boolean> {
 		console.log("LLDBDebugger: removeAllBreakpoints");
 		return new Promise((resolve, reject) => {
-			
+			resolve(false);
+		});
+	}
+	
+	public evaluate(expression: string): Promise<boolean> {
+		return new Promise((resolve, reject) => {
+			this.lldb.stdin.write(`${expression}\n`);
+			resolve(true);
 		});
 	}
 
@@ -104,7 +129,7 @@ class SwiftDebugSession extends DebugSession {
 	
 	public constructor(debuggerLinesStartAt1: boolean, isServer: boolean = false) {
 		super(debuggerLinesStartAt1, isServer);
-		this.lldb = new LLDBDebugger();
+		this.lldb = new LLDBDebugger(this);
 		this.breakpoints = new Map<string, DebugBreakpoint[]>();
 	}
 
@@ -114,8 +139,11 @@ class SwiftDebugSession extends DebugSession {
 	}
 
 	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
-		this.lldb.connect(args.program);
-		this.sendResponse(response);
+		this.lldb.connect(args.program)
+			.then(() => {
+				this.sendEvent(new OutputEvent("launched", 'stdout'));
+				this.sendResponse(response);
+			});
 	}
 
 	protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments): void {
@@ -137,13 +165,8 @@ class SwiftDebugSession extends DebugSession {
 		var existing = this.breakpoints.get(filename);
 		
 		this.lldb.removeAllBreakpoints()
-			.then(() {
-				for (var idx in args.lines) {
-					this.lldb.setBreakpoint(filename, args.lines[idx])
-				}
-				
-				this.sendResponse(response);
-			});
+			.then(() => this.lldb.setBreakpoints(filename, args.lines))
+			.then(() => this.sendResponse(response));
 	}
 
 	protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
@@ -192,8 +215,8 @@ class SwiftDebugSession extends DebugSession {
 	}
 
 	protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
-		console.error("Not yet implemented: evaluateRequest");
-		this.sendErrorResponse(response, 2000, "Evaluate is not yet supported");
+		this.lldb.evaluate(args.expression)
+			.then(() => this.sendResponse(response));
 	}
 }
 
