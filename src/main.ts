@@ -60,21 +60,19 @@ class LLDB {
 				let str = (bytes + "");
 				console.log(str);
 				
-				if (!str.startsWith("(lldb)")) {
-					if (self.onstdout) {
-						self.onstdout(str);
-					}
+				str = str.replace(/^\(lldb\).*\n/g, "")
+				if (self.onstdout) {
+					self.onstdout(str);
 				}
 			});
 			
 			lldb.stderr.on("data", (bytes: Uint8Array) => {
 				let str = (bytes + "");
-				console.log(str);
+				console.error(str);
 				
-				if (!str.startsWith("(lldb)")) {
-					if (self.onstderr) {
-						self.onstderr(str);
-					}
+				str = str.replace(/^\(lldb\).*\n/g, "")
+				if (self.onstdout) {
+					self.onstdout(str);
 				}
 			});
 			
@@ -92,14 +90,14 @@ class LLDB {
 		});
 	}
 
-	public evaluate(expression: string): Promise<boolean> {
+	public evaluate(expression: string): Promise<string> {
 		return this.doCommand(expression);
 	}
 
-	private doCommand(command: string): Promise<boolean> {
+	private doCommand(command: string): Promise<string> {
 		let self = this;
 		return new Promise((resolve, reject) => {
-			self.debugger.stdin.write(`${command}\n`, () => resolve(true));
+			self.debugger.stdin.write(`${command}\n`, () => resolve(""));
 		});
 	}
 }
@@ -248,7 +246,7 @@ class SwiftDebugSession extends DebugSession {
 		this.lldb.evaluate(args.expression)
 			.then((result) => {
 				response.body = {
-					result: null,
+					result: result,
 					variablesReference: 0
 				};
 				this.sendResponse(response);
