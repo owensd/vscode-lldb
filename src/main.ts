@@ -88,14 +88,14 @@ class LLDBDebugger {
 	}
 	
 	public setBreakpoints(filename: string, linenumbers: number[]): Promise<boolean> {
-		console.log("LLDBDebugger: setBreakpoint");
-		return new Promise((resolve, reject) => {
-			for (var idx in linenumbers) {
-				this.lldb.stdin.write(`breakpoint set -f ${filename} -l ${linenumbers[idx]}\n`);
-			}
-			this.lldb.stdin.write("r\n");
-			resolve(true);
-		});
+		// console.log("LLDBDebugger: setBreakpoint");
+		// return new Promise((resolve, reject) => {
+		// 	for (var idx in linenumbers) {
+		// 		this.lldb.stdin.write(`breakpoint set -f ${filename} -l ${linenumbers[idx]}\n`);
+		// 	}
+		// 	this.lldb.stdin.write("r\n");
+		// 	resolve(true);
+		// });
 	}
 
 
@@ -124,13 +124,20 @@ class LLDBDebugger {
 
 
 class SwiftDebugSession extends DebugSession {
+	private static MAIN_THREAD_ID = 0;
+	
 	private lldb: LLDBDebugger;
-	private breakpoints: Map<string, DebugBreakpoint[]>;
+	private breakpoints: Map<string, DebugProtocol.Breakpoint[]>;
+	
+	private program: string;
+	private currentline: number;
 	
 	public constructor(debuggerLinesStartAt1: boolean, isServer: boolean = false) {
 		super(debuggerLinesStartAt1, isServer);
 		this.lldb = new LLDBDebugger(this);
-		this.breakpoints = new Map<string, DebugBreakpoint[]>();
+		this.breakpoints = new Map<string, DebugProtocol.Breakpoint[]>();
+		this.program = null;
+		this.currentline = 0;
 	}
 
 	protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
@@ -139,21 +146,25 @@ class SwiftDebugSession extends DebugSession {
 	}
 
 	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
-		this.lldb.connect(args.program)
-			.then(() => {
-				this.sendEvent(new OutputEvent("launched", 'stdout'));
-				this.sendResponse(response);
-			});
+		this.program = args.program;
+		
+		if (args.stopOnEntry) {
+			this.currentline = 0;
+			this.sendResponse(response);
+			this.sendEvent(new StoppedEvent("entry", SwiftDebugSession.MAIN_THREAD_ID));
+		}
+		else {
+			this.continueRequest(response, { threadId: SwiftDebugSession.MAIN_THREAD_ID });
+		}
 	}
 
 	protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments): void {
-		console.error("Not yet implemented: disconnectRequest");
-		this.sendErrorResponse(response, 2000, "Disconnect is not yet supported");
+		this.sendResponse(response);
+		this.sendEvent(new TerminatedEvent());
 	}
 	
 	protected setExceptionBreakPointsRequest(response: DebugProtocol.SetExceptionBreakpointsResponse, args: DebugProtocol.SetExceptionBreakpointsArguments): void {
-		console.warn("[NOT YET IMPLEMENTED]: setExceptionBreakPointRequest");
-		this.sendResponse(response);
+		this.sendErrorResponse(response, 101, "Setting a breakpoint on exceptions is not yet supported.");
 	}
 
 	protected setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): void {
@@ -161,62 +172,96 @@ class SwiftDebugSession extends DebugSession {
 			this.breakpoints.set(args.source.path, []);
 		}
 		
-		var filename = args.source.path;
-		var existing = this.breakpoints.get(filename);
-		
-		this.lldb.removeAllBreakpoints()
-			.then(() => this.lldb.setBreakpoints(filename, args.lines))
-			.then(() => this.sendResponse(response));
+		var path = args.source.path;
+		var clientLines = args.lines;
+
+		var lines = readFileSync(path).toString().split('\n');
+
+		var newPositions = [clientLines.length];
+		var breakpoints = [];
+
+		for (var i = 0; i < clientLines.length; i++) {
+			var l = this.convertClientLineToDebugger(clientLines[i]);
+			var verified = false;
+			if (l < lines.length) {
+				verified = true;
+			}
+			newPositions[i] = l;
+			breakpoints.push({ verified: verified, line: this.convertDebuggerLineToClient(l)});
+		}
+		this.breakpoints.set(path, breakpoints);
+
+		response.body = {
+			breakpoints: breakpoints
+		};
+		this.sendResponse(response);
 	}
 
 	protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-		console.error("Not yet implemented: threadRequest");
-		this.sendErrorResponse(response, 2000, "Threads is not yet supported");
+		response.body = {
+			threads: [
+				new Thread(SwiftDebugSession.MAIN_THREAD_ID, "thread 0")
+			]
+		};
+		this.sendResponse(response);
 	}
 
 	protected stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): void {
-		console.error("Not yet implemented: stackTraceRequest");
-		this.sendErrorResponse(response, 2000, "Stack Trace is not yet supported");
+		const frames = new Array<StackFrame>();
+
+		response.body = {
+			stackFrames: frames
+		};
+		this.sendResponse(response);
 	}
 
 	protected scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments): void {
-		console.error("Not yet implemented: scopesRequest");
-		this.sendErrorResponse(response, 2000, "Scopes is not yet supported");
+		const frameReference = args.frameId;
+		const scopes = new Array<Scope>();
+
+		response.body = {
+			scopes: scopes
+		};
+		this.sendResponse(response);
 	}
 
 	protected variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): void {
-		console.error("Not yet implemented: variablesRequest");
-		this.sendErrorResponse(response, 2000, "Variables is not yet supported");
+		const variables = [];
+		
+		response.body = {
+			variables: variables
+		}
+		this.sendResponse(response);
 	}
 
-	protected continueRequest(response: DebugProtocol.ContinueResponse): void {
-		console.error("Not yet implemented: continueRequest");
-		this.sendErrorResponse(response, 2000, "Continue is not yet supported");
+	protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
+		this.sendResponse(response);
 	}
 
-	protected nextRequest(response: DebugProtocol.NextResponse): void {
-		console.error("Not yet implemented: nextRequest");
-		this.sendErrorResponse(response, 2000, "Next is not yet supported");
+	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
+		this.sendErrorResponse(response, 104, "Next is not supported.");
 	}
 
-	protected stepInRequest(response: DebugProtocol.StepInResponse): void {
-		console.error("Not yet implemented: stepInRequest");
-		this.sendErrorResponse(response, 2000, "Step In is not yet supported");
+	protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
+		this.sendErrorResponse(response, 102, "Step In is not yet supported");
 	}
 
-	protected stepOutRequest(response: DebugProtocol.StepOutResponse): void {
+	protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
 		console.error("Not yet implemented: stepOutRequest");
-		this.sendErrorResponse(response, 2000, "Step out is not yet supported");
+		this.sendErrorResponse(response, 103, "Step out is not yet supported");
 	}
 
-	protected pauseRequest(response: DebugProtocol.PauseResponse): void {
-		console.error("Not yet implemented: pauseRequest");
-		this.sendErrorResponse(response, 2000, "Pause is not yet supported");
+	protected pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments): void {
+		this.sendResponse(response);
+		this.sendEvent(new StoppedEvent("pause", SwiftDebugSession.MAIN_THREAD_ID));
 	}
 
 	protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
-		this.lldb.evaluate(args.expression)
-			.then(() => this.sendResponse(response));
+		response.body = {
+			result: `evaluate(${args.expression})`,
+			variablesReference: 0
+		};
+		this.sendResponse(response);
 	}
 }
 
