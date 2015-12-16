@@ -97,6 +97,10 @@ class LLDB {
 	private doCommand(command: string): Promise<string> {
 		let self = this;
 		return new Promise((resolve, reject) => {
+			// HACK(owensd): In order to support multi-step commands, an "empty line" must be able
+			// to be send. So if the user enters "\n", treat it as the empty line until VSCode supports
+			// this type of interaction.
+			if (command === "\\n") { command = ""; }
 			self.debugger.stdin.write(`${command}\n`, () => resolve(""));
 		});
 	}
