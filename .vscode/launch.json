@@ -6,10 +6,23 @@
 			"type": "node",
 			"request": "launch",
 			"runtimeArgs": ["--harmony"],
-			"program": "./out/lldb/main.js",
+			"program": "./out/main.js",
 			"stopOnEntry": false,
 			"args": ["--server=4711"],
 			"sourceMaps": true
+		},
+		{
+			"name": "Run Tests",
+			"type": "node",
+			"request": "launch",
+			"program": "node_modules/mocha/bin/_mocha",
+			"args": [
+				"./out/tests",
+				"--timeout", "999999",
+				"--colors"
+			],
+			"sourceMaps": true,
+			"outDir": "./out"
 		}
 	]
 }

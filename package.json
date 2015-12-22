@@ -1,10 +1,10 @@
 {
 	"name": "Swift",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"publisher": "owensd.io",
 	"description": "LLDB debugger support for Visual Studio Code",
 	"author": {
-		"name": "David Owens II - owensd.io"
+		"name": "David Owens II"
 	},
 	"icon": "images/DragonSmall.png",
 	"categories": [
@@ -19,24 +19,24 @@
 		"type": "git",
 		"url": "https://github.com/owensd/vscode-lldb.git"
 	},
-	"scripts": {
-		"vscode:prepublish": "node ./node_modules/vscode/bin/compile",
-		"compile": "node ./node_modules/vscode/bin/compile -watch -p ./",
-		"start": "node ./node_modules/vscode/bin/compile; VSCODE_CWD=\"$PWD\" open -n -b \"com.microsoft.VSCode\" --args --extensionDevelopmentPath=. .; node ./node_modules/vscode/bin/compile -watch -p ./"
+	"bugs": {
+		"url": "https://github.com/owensd/vscode-lldb/issues"
 	},
-	"extensionDependencies": [
-		"vscode.lldb"
-	],
+	"scripts": {
+		"compile": "tsc -p ./lib",
+		"watch": "tsc -w -p ./lib/",
+		"test": "mocha out/tests"
+	},
 	"dependencies": {
-		"console-stamp": "^0.2.0"
+		"vscode-debugadapter": "^1.0.1",
+		"vscode-debugprotocol": "^1.0.1"
 	},
 	"devDependencies": {
-		"vscode": "0.10.x",
-		"fs-extra": "^0.26.0",
-		"typescript": "^1.6.2"
+		"typescript": "^1.6.2",
+		"mocha": "*"
 	},
 	"engines": {
-		"vscode": "0.10.x"
+		"vscode": "^0.10.x"
 	},
 	"contributes": {
 		"debuggers": [
@@ -46,15 +46,15 @@
 				"enableBreakpointsFor": {
 					"languageIds": [ "swift", "cpp", "objc" ]
 				},
-				"program": "./out/lldb/main.js",
+				"program": "./out/src/lldb-debugger.js",
 				"runtime": "node",
 				"initialConfigurations": [
 					{
 						"name": "Launch main.swift",
 						"type": "swift",
 						"request": "launch",
-						"mode": "debug",
-						"program": "main.swift"
+						"program": "main.swift",
+						"stopOnEntry": true
 					}
 				],
 				"configurationAttributes": {

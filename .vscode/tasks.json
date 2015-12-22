@@ -2,8 +2,7 @@
 	"version": "0.1.0",
 	"command": "npm",
 	"isShellCommand": true,
-	"showOutput": "silent",
-	"args": ["run", "compile"],
+	"args": ["run", "watch"],
 	"isWatching": true,
 	"problemMatcher": "$tsc-watch"
 }

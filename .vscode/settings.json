@@ -1,11 +1,16 @@
 {
+	"javascript.validate.enable": false,
+	"files.trimTrailingWhitespace": true,
+	"eslint.enable": false,
+	"editor.insertSpaces": false,
+	"editor.tabSize": 4,
 	"files.exclude": {
-		"out": true,
-		"typings": false
-	},
-	"search.exclude": {
-		"**/node_modules": true,
-		"**/bower_components": true,
-		"out/": true
+		"**/.git": true,
+		"**/.DS_Store": true,
+		"node_modules/**": true,
+		"out/**": true,
+		".travis.yml": true,
+		".gitignore": true,
+		".vscode/**": true
 	}
 }
