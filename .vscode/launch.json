@@ -19,10 +19,12 @@
 			"args": [
 				"./out/tests",
 				"--timeout", "999999",
-				"--colors"
+				"--colors",
+				"--recursive"
 			],
 			"sourceMaps": true,
-			"outDir": "./out"
+			"outDir": "./out",
+			"preLaunchTask": "npm"
 		}
 	]
 }

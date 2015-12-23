@@ -8,9 +8,6 @@
 		"**/.git": true,
 		"**/.DS_Store": true,
 		"node_modules/**": true,
-		"out/**": true,
-		".travis.yml": true,
-		".gitignore": true,
-		".vscode/**": true
+		"out/**": true
 	}
 }

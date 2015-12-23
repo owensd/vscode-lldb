@@ -25,7 +25,7 @@
 	"scripts": {
 		"compile": "tsc -p ./lib",
 		"watch": "tsc -w -p ./lib/",
-		"test": "mocha out/tests"
+		"test": "mocha --recursive out/tests"
 	},
 	"dependencies": {
 		"vscode-debugadapter": "^1.0.1",
