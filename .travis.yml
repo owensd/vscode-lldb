@@ -5,9 +5,8 @@ node_js:
   - "0.12"
 sudo: false
 script:
-  - where lldb
-  - where clang
-  - ls /usr/bin
-  - ls /usr/local/bin
+  - which lldb
+  - which clang
+  - env
   - npm run compile
   - npm test
