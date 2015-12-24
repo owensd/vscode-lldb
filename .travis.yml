@@ -1,10 +1,13 @@
 language: node_js
-os: osx
 node_js:
   - "4.1"
   - "4.0"
   - "0.12"
 sudo: false
 script:
+  - where lldb
+  - where clang
+  - ls /usr/bin
+  - ls /usr/local/bin
   - npm run compile
   - npm test

@@ -23,6 +23,7 @@
 		"url": "https://github.com/owensd/vscode-lldb/issues"
 	},
 	"scripts": {
+		"clean": "rm -rf ./out",
 		"compile": "tsc -p ./lib",
 		"watch": "tsc -w -p ./lib/",
 		"test": "mocha --recursive out/tests"
